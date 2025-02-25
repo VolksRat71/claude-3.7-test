@@ -1,5 +1,7 @@
 # 3D City Simulation
 
+[host link](https://volksrat71.github.io/claude-3.7-test/)
+
 A real-time 3D city simulation built using React and Three.js, showcasing advanced rendering optimizations, dynamic day/night cycles, realistic traffic simulation, and interactive camera controls. This project was built in roughly one hour, demonstrating rapid prototyping with high-performance and clean code practices.
 
 ## Features
@@ -122,7 +124,3 @@ Feel free to fork this repository and contribute enhancements, bug fixes, or opt
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-
----
-
-Built in roughly one hour, this project demonstrates that with modern frameworks like React and Three.js, you can achieve sophisticated, interactive simulations with thoughtful performance optimizations and clean, modular code.
