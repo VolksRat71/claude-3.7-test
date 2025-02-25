@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/claude-3.7-test/static/css/main.056016b8.css",
+    "main.js": "/claude-3.7-test/static/js/main.fc3f40f5.js",
+    "index.html": "/claude-3.7-test/index.html",
+    "main.056016b8.css.map": "/claude-3.7-test/static/css/main.056016b8.css.map",
+    "main.fc3f40f5.js.map": "/claude-3.7-test/static/js/main.fc3f40f5.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.056016b8.css",
+    "static/js/main.fc3f40f5.js"
+  ]
+}
