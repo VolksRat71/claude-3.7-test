@@ -1,7 +1,6 @@
 // components/objects/Car.js
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
 const Car = ({
@@ -20,8 +19,11 @@ const Car = ({
   const [carPosition, setCarPosition] = useState(new THREE.Vector3(...initialPosition));
   const [carRotation, setCarRotation] = useState(new THREE.Euler(0, 0, 0));
 
-  // Load car model with useGLTF
-  const { scene } = useGLTF('/models/car.glb');
+  // Generate random car color
+  const carColor = useMemo(() => {
+    const colors = ['#ff0000', '#0000ff', '#00ff00', '#ffff00', '#ffffff', '#000000', '#ffa500'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }, []);
 
   // Determine if car should stop at intersection
   const isNearIntersection = () => {
@@ -100,13 +102,70 @@ const Car = ({
 
   return (
     <group ref={meshRef} position={carPosition.toArray()} rotation={carRotation.toArray()}>
-      {/* Car model */}
-      <primitive object={scene.clone()} scale={[0.5, 0.5, 0.5]} />
+      {/* Car body */}
+      <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
+        <boxGeometry args={[1.8, 0.6, 4]} />
+        <meshStandardMaterial color={carColor} metalness={0.5} roughness={0.2} />
+      </mesh>
+
+      {/* Car cabin/top */}
+      <mesh castShadow receiveShadow position={[0, 0.9, 0]}>
+        <boxGeometry args={[1.5, 0.5, 2.5]} />
+        <meshStandardMaterial color={carColor} metalness={0.5} roughness={0.2} />
+      </mesh>
+
+      {/* Wheels */}
+      <mesh castShadow position={[0.9, 0.1, 1.2]}>
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh castShadow position={[-0.9, 0.1, 1.2]}>
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh castShadow position={[0.9, 0.1, -1.2]}>
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh castShadow position={[-0.9, 0.1, -1.2]}>
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+
+      {/* Windows */}
+      <mesh castShadow position={[0, 0.9, 1.0]}>
+        <boxGeometry args={[1.4, 0.4, 0.1]} />
+        <meshStandardMaterial color="#aaddff" opacity={0.7} transparent />
+      </mesh>
+      <mesh castShadow position={[0, 0.9, -1.0]}>
+        <boxGeometry args={[1.4, 0.4, 0.1]} />
+        <meshStandardMaterial color="#aaddff" opacity={0.7} transparent />
+      </mesh>
 
       {/* Headlights */}
+      <mesh position={[0.6, 0.4, 2.0]}>
+        <boxGeometry args={[0.3, 0.2, 0.1]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0} />
+      </mesh>
+      <mesh position={[-0.6, 0.4, 2.0]}>
+        <boxGeometry args={[0.3, 0.2, 0.1]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0} />
+      </mesh>
+
+      {/* Taillights */}
+      <mesh position={[0.6, 0.4, -2.0]}>
+        <boxGeometry args={[0.3, 0.2, 0.1]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[-0.6, 0.4, -2.0]}>
+        <boxGeometry args={[0.3, 0.2, 0.1]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+      </mesh>
+
+      {/* Headlights - Light sources */}
       <spotLight
         ref={headlightsRef}
-        position={[0, 0.5, 1.5]}
+        position={[0, 0.5, 2.0]}
         angle={0.3}
         penumbra={0.5}
         intensity={0}
@@ -115,10 +174,10 @@ const Car = ({
         distance={10}
       />
 
-      {/* Taillights */}
+      {/* Taillights - Light sources */}
       <pointLight
         ref={taillightsRef}
-        position={[0, 0.5, -1.5]}
+        position={[0, 0.5, -2.0]}
         intensity={0.3}
         color="#ff0000"
         distance={5}

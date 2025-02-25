@@ -1,9 +1,9 @@
 // utils/terrainGenerator.js
 import * as THREE from 'three';
-import SimplexNoise from 'simplex-noise';
+import { createNoise2D } from 'simplex-noise';
 
 export const generateTerrain = (width, depth, height, resolution = 64) => {
-  const simplex = new SimplexNoise();
+  const noise2D = createNoise2D();
 
   // Generate height map
   const heightMap = [];
@@ -19,9 +19,9 @@ export const generateTerrain = (width, depth, height, resolution = 64) => {
       const frequency2 = 3.0;
       const frequency3 = 6.0;
 
-      const noise1 = simplex.noise2D(nx * frequency1, nz * frequency1) * 0.5;
-      const noise2 = simplex.noise2D(nx * frequency2, nz * frequency2) * 0.25;
-      const noise3 = simplex.noise2D(nx * frequency3, nz * frequency3) * 0.125;
+      const noise1 = noise2D(nx * frequency1, nz * frequency1) * 0.5;
+      const noise2 = noise2D(nx * frequency2, nz * frequency2) * 0.25;
+      const noise3 = noise2D(nx * frequency3, nz * frequency3) * 0.125;
 
       // Combine noise values
       let h = noise1 + noise2 + noise3;
