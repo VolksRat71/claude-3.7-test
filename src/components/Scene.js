@@ -9,6 +9,7 @@ import Intersection from './environment/Intersection';
 import Car from './objects/Car';
 import Tree from './objects/Tree';
 import TrafficLight from './objects/TrafficLight';
+import StreetLight from './objects/StreetLight';
 import { generateTerrain } from '../utils/terrainGenerator';
 import { generateRoadPath } from '../utils/roadGenerator';
 
@@ -16,12 +17,13 @@ import { generateRoadPath } from '../utils/roadGenerator';
 const DAY_CYCLE_DURATION = 60; // seconds for a full day
 const CAR_COUNT = 5;
 const TREE_COUNT = 20;
+const STREET_LIGHT_COUNT = 10;
 
 const Scene = () => {
   const { scene } = useThree();
   const sceneRef = useRef();
   const timeRef = useRef(0);
-  const [dayTime, setDayTime] = useState(0); // 0-1 represents time of day
+  const [dayTime, setDayTime] = useState(0.5); // 0-1 represents time of day, start at mid-day
   const [terrainData, setTerrainData] = useState(null);
   const [roadPath, setRoadPath] = useState(null);
   const [trafficLightState, setTrafficLightState] = useState('red');
@@ -65,7 +67,7 @@ const Scene = () => {
       const sunAngle = newDayTime * Math.PI * 2;
       const sunRadius = 50;
       lightRef.current.position.x = Math.cos(sunAngle) * sunRadius;
-      lightRef.current.position.y = Math.sin(sunAngle) * sunRadius;
+      lightRef.current.position.y = Math.abs(Math.sin(sunAngle) * sunRadius) + 5; // Keep sun above horizon
       lightRef.current.position.z = 0;
     }
   });
@@ -78,7 +80,6 @@ const Scene = () => {
   for (let i = 0; i < TREE_COUNT; i++) {
     const x = Math.random() * 80 - 40;
     const z = Math.random() * 80 - 40;
-    const y = terrainData.getHeightAt(x, z);
 
     // Make sure trees are not too close to the road
     const minDistanceToRoad = 5;
@@ -88,8 +89,34 @@ const Scene = () => {
     });
 
     if (!isNearRoad) {
+      // Get actual height from terrain
+      const y = terrainData.getHeightAt(x, z);
       treePositions.push({ x, y, z });
     }
+  }
+
+  // Place street lights along the road
+  const streetLightPositions = [];
+  for (let i = 0; i < STREET_LIGHT_COUNT; i++) {
+    const pathIndex = Math.floor(Math.random() * roadPath.points.length);
+    const point = roadPath.points[pathIndex];
+
+    // Offset from road center
+    const nextPoint = roadPath.points[(pathIndex + 1) % roadPath.points.length];
+    const direction = new THREE.Vector2(
+      nextPoint.x - point.x,
+      nextPoint.z - point.z
+    ).normalize();
+
+    // Place light on side of road (perpendicular to direction)
+    const perpendicular = new THREE.Vector2(-direction.y, direction.x);
+    const offset = 3; // Distance from road center
+
+    streetLightPositions.push({
+      x: point.x + perpendicular.x * offset,
+      y: point.y,
+      z: point.z + perpendicular.y * offset
+    });
   }
 
   // Generate car starting positions and paths
@@ -126,17 +153,27 @@ const Scene = () => {
         shadow-camera-right={50}
         shadow-camera-top={50}
         shadow-camera-bottom={-50}
+        shadow-bias={-0.0001}
       />
 
       {/* Environment */}
       <Terrain data={terrainData} />
-      <Road path={roadPath} />
+      <Road path={roadPath} terrain={terrainData} />
       <Intersection position={roadPath.intersection} />
 
       {/* Trees */}
       {treePositions.map((pos, index) => (
         <Tree
           key={`tree-${index}`}
+          position={[pos.x, pos.y, pos.z]}
+          dayTime={dayTime}
+        />
+      ))}
+
+      {/* Street Lights */}
+      {streetLightPositions.map((pos, index) => (
+        <StreetLight
+          key={`street-light-${index}`}
           position={[pos.x, pos.y, pos.z]}
           dayTime={dayTime}
         />
@@ -169,6 +206,7 @@ const Scene = () => {
           key={`car-${car.id}`}
           initialPosition={[car.startPosition.x, car.startPosition.y, car.startPosition.z]}
           path={roadPath}
+          terrain={terrainData}
           initialPathIndex={car.pathIndex}
           speed={car.speed}
           trafficLightState={trafficLightState}

@@ -6,18 +6,22 @@ import * as THREE from 'three';
 const Car = ({
   initialPosition,
   path,
+  terrain,
   initialPathIndex,
   speed,
   trafficLightState,
   intersectionPosition,
   dayTime
 }) => {
-  const meshRef = useRef();
-  const headlightsRef = useRef();
-  const taillightsRef = useRef();
+  const carRef = useRef();
+  const wheelsRef = useRef([]);
+  const headlightsRef = useRef([]);
+  const taillightsRef = useRef([]);
+
   const [pathIndex, setPathIndex] = useState(initialPathIndex);
   const [carPosition, setCarPosition] = useState(new THREE.Vector3(...initialPosition));
   const [carRotation, setCarRotation] = useState(new THREE.Euler(0, 0, 0));
+  const [wheelRotation, setWheelRotation] = useState(0);
 
   // Generate random car color
   const carColor = useMemo(() => {
@@ -33,9 +37,24 @@ const Car = ({
     return distance < 5;
   };
 
+  // Calculate surface normal at a point for proper car orientation
+  const getSurfaceNormal = (x, z) => {
+    if (!terrain) return new THREE.Vector3(0, 1, 0);
+
+    const delta = 0.5;
+    const centerHeight = terrain.getHeightAt(x, z);
+    const northHeight = terrain.getHeightAt(x, z + delta);
+    const eastHeight = terrain.getHeightAt(x + delta, z);
+
+    const northVector = new THREE.Vector3(0, northHeight - centerHeight, delta).normalize();
+    const eastVector = new THREE.Vector3(delta, eastHeight - centerHeight, 0).normalize();
+
+    return new THREE.Vector3().crossVectors(eastVector, northVector).normalize();
+  };
+
   // Car movement logic
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
+    if (!carRef.current || !terrain) return;
 
     // Check if should stop at red light
     const shouldStop = trafficLightState === 'red' && isNearIntersection();
@@ -57,6 +76,9 @@ const Car = ({
       const moveDistance = speed * delta;
       const newPosition = carPosition.clone().add(direction.multiplyScalar(moveDistance));
 
+      // Adjust height based on terrain
+      newPosition.y = terrain.getHeightAt(newPosition.x, newPosition.z) + 0.2; // Slightly above ground
+
       // Calculate distance to next point
       const distanceToNextPoint = newPosition.distanceTo(
         new THREE.Vector3(nextPoint.x, nextPoint.y, nextPoint.z)
@@ -70,38 +92,72 @@ const Car = ({
       // Update car position
       setCarPosition(newPosition);
 
-      // Calculate orientation based on path (yaw, pitch, roll)
-      // Yaw (rotation around Y axis)
+      // Get surface normal at car position for orientation
+      const normal = getSurfaceNormal(newPosition.x, newPosition.z);
+
+      // Calculate orientation based on path and terrain (yaw, pitch, roll)
+      // Yaw (rotation around Y axis) - direction of travel
       const yaw = Math.atan2(direction.x, direction.z);
 
-      // Pitch (rotation around X axis) based on terrain slope
-      const terrainNormal = new THREE.Vector3(0, 1, 0); // Simplified
-      const pitch = Math.acos(direction.dot(terrainNormal)) - Math.PI / 2;
+      // Create rotation matrix from surface normal
+      const rotationMatrix = new THREE.Matrix4();
+      const up = new THREE.Vector3(0, 1, 0);
 
-      // Roll (rotation around Z axis) based on road banking
-      const roll = 0; // Simplified, would calculate based on road curve
+      // Find the axis and angle to rotate from up vector to normal
+      const axis = new THREE.Vector3().crossVectors(up, normal).normalize();
+      const angle = Math.acos(up.dot(normal));
 
-      setCarRotation(new THREE.Euler(pitch, yaw, roll));
+      // Set car rotation
+      const newRotation = new THREE.Euler();
+      newRotation.set(0, yaw, 0); // Start with yaw
+
+      // Apply pitch and roll based on terrain normal
+      if (axis.length() > 0.001) {
+        const quaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+        const yawQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+        quaternion.multiply(yawQuaternion);
+        newRotation.setFromQuaternion(quaternion);
+      }
+
+      setCarRotation(newRotation);
+
+      // Rotate wheels
+      setWheelRotation(prev => prev - moveDistance * 3);
     }
 
     // Update car position and rotation
-    meshRef.current.position.copy(carPosition);
-    meshRef.current.rotation.copy(carRotation);
+    if (carRef.current) {
+      carRef.current.position.copy(carPosition);
+      carRef.current.rotation.copy(carRotation);
+    }
+
+    // Rotate wheels
+    if (wheelsRef.current) {
+      wheelsRef.current.forEach(wheel => {
+        if (wheel) wheel.rotation.x = wheelRotation;
+      });
+    }
 
     // Update car lights based on time of day
     const isNight = dayTime < 0.25 || dayTime > 0.75;
 
-    if (headlightsRef.current && taillightsRef.current) {
-      // Headlights
-      headlightsRef.current.intensity = isNight ? 1 : 0;
+    // Headlights
+    if (headlightsRef.current) {
+      headlightsRef.current.forEach(light => {
+        if (light) light.intensity = isNight ? 1.5 : 0;
+      });
+    }
 
-      // Taillights (always on but brighter at night)
-      taillightsRef.current.intensity = isNight ? 0.8 : 0.3;
+    // Taillights
+    if (taillightsRef.current) {
+      taillightsRef.current.forEach(light => {
+        if (light) light.intensity = isNight ? 0.8 : 0.3;
+      });
     }
   });
 
   return (
-    <group ref={meshRef} position={carPosition.toArray()} rotation={carRotation.toArray()}>
+    <group ref={carRef} position={carPosition.toArray()} rotation={carRotation.toArray()}>
       {/* Car body */}
       <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
         <boxGeometry args={[1.8, 0.6, 4]} />
@@ -114,21 +170,37 @@ const Car = ({
         <meshStandardMaterial color={carColor} metalness={0.5} roughness={0.2} />
       </mesh>
 
-      {/* Wheels */}
-      <mesh castShadow position={[0.9, 0.1, 1.2]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+      {/* Wheels - correctly oriented on X axis for rotation */}
+      <mesh
+        castShadow
+        position={[0.9, 0.3, 1.2]}
+        ref={el => { wheelsRef.current[0] = el }}
+      >
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[0, 0, Math.PI/2]} />
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh castShadow position={[-0.9, 0.1, 1.2]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+      <mesh
+        castShadow
+        position={[-0.9, 0.3, 1.2]}
+        ref={el => { wheelsRef.current[1] = el }}
+      >
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[0, 0, Math.PI/2]} />
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh castShadow position={[0.9, 0.1, -1.2]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+      <mesh
+        castShadow
+        position={[0.9, 0.3, -1.2]}
+        ref={el => { wheelsRef.current[2] = el }}
+      >
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[0, 0, Math.PI/2]} />
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh castShadow position={[-0.9, 0.1, -1.2]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[Math.PI/2, 0, 0]} />
+      <mesh
+        castShadow
+        position={[-0.9, 0.3, -1.2]}
+        ref={el => { wheelsRef.current[3] = el }}
+      >
+        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} rotation={[0, 0, Math.PI/2]} />
         <meshStandardMaterial color="#222" />
       </mesh>
 
@@ -145,11 +217,19 @@ const Car = ({
       {/* Headlights */}
       <mesh position={[0.6, 0.4, 2.0]}>
         <boxGeometry args={[0.3, 0.2, 0.1]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0} />
+        <meshStandardMaterial
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0}
+        />
       </mesh>
       <mesh position={[-0.6, 0.4, 2.0]}>
         <boxGeometry args={[0.3, 0.2, 0.1]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0} />
+        <meshStandardMaterial
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={dayTime < 0.25 || dayTime > 0.75 ? 1 : 0}
+        />
       </mesh>
 
       {/* Taillights */}
@@ -164,20 +244,37 @@ const Car = ({
 
       {/* Headlights - Light sources */}
       <spotLight
-        ref={headlightsRef}
-        position={[0, 0.5, 2.0]}
+        ref={el => { headlightsRef.current[0] = el }}
+        position={[0.6, 0.5, 2.0]}
         angle={0.3}
         penumbra={0.5}
         intensity={0}
-        color="#fff"
+        color="#ffffff"
         castShadow
-        distance={10}
+        distance={15}
+      />
+      <spotLight
+        ref={el => { headlightsRef.current[1] = el }}
+        position={[-0.6, 0.5, 2.0]}
+        angle={0.3}
+        penumbra={0.5}
+        intensity={0}
+        color="#ffffff"
+        castShadow
+        distance={15}
       />
 
       {/* Taillights - Light sources */}
       <pointLight
-        ref={taillightsRef}
-        position={[0, 0.5, -2.0]}
+        ref={el => { taillightsRef.current[0] = el }}
+        position={[0.6, 0.5, -2.0]}
+        intensity={0.3}
+        color="#ff0000"
+        distance={5}
+      />
+      <pointLight
+        ref={el => { taillightsRef.current[1] = el }}
+        position={[-0.6, 0.5, -2.0]}
         intensity={0.3}
         color="#ff0000"
         distance={5}

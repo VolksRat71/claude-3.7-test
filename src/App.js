@@ -1,7 +1,6 @@
-// App.js - Main application entry point
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Sky, OrbitControls, Stats } from '@react-three/drei';
+import { OrbitControls, Stats } from '@react-three/drei';
 import Scene from './components/Scene';
 import './App.css';
 
@@ -20,4 +19,3 @@ function App() {
 }
 
 export default App;
-
