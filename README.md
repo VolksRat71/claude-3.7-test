@@ -1,8 +1,8 @@
 # 3D City Simulation
 
-[host link](https://volksrat71.github.io/claude-3.7-test/)
+### [host link](https://volksrat71.github.io/claude-3.7-test/)
 
-A real-time 3D city simulation built using React and Three.js, showcasing advanced rendering optimizations, dynamic day/night cycles, realistic traffic simulation, and interactive camera controls. This project was built in roughly one hour, demonstrating rapid prototyping with high-performance and clean code practices.
+A real-time 3D city simulation built using React and Three.js, showcasing advanced rendering optimizations, dynamic day/night cycles, realistic traffic simulation, and interactive camera controls. **Note:** This project was not developed by me personally; it was a rapid, one-hour hackathon project built using Claude 3.7 with Thinking enabled. This project was built in roughly one hour, demonstrating rapid prototyping with high-performance and clean code practices.
 
 ## Features
 
@@ -77,7 +77,7 @@ The app will open in your browser at `http://localhost:3000`, displaying the int
 
 ## Code Structure
 
-- **App.js**
+- **App.js**  
   The main React component that sets up the Three.js scene and handles:
   - Scene, camera, and renderer initialization.
   - Custom camera controls (mouse and wheel event handlers).
@@ -86,12 +86,12 @@ The app will open in your browser at `http://localhost:3000`, displaying the int
   - Traffic simulation including vehicles and traffic lights.
   - Resource management with caching and cleanup to ensure optimal performance.
 
-- **CSS Styling**
+- **CSS Styling**  
   The `App.css` file contains styling for the control panel and scene container, ensuring a clean layout for both the simulation and user interface.
 
 ## Performance Optimizations
 
-- **Renderer Settings:**
+- **Renderer Settings:**  
   The renderer is initialized with performance in mind:
   ```js
   const renderer = new THREE.WebGLRenderer({
@@ -102,24 +102,20 @@ The app will open in your browser at `http://localhost:3000`, displaying the int
     depth: true
   });
   ```
-- **Animation Loop:**
+- **Animation Loop:**  
   A throttled animation loop using a target frame interval maintains smooth performance while reducing unnecessary frame renders.
-- **Resource Management:**
+- **Resource Management:**  
   All textures, geometries, materials, lights, and objects are tracked in a `resources` object and properly disposed of in the cleanup function.
 
 ## Dynamic Simulation Details
 
-- **Day/Night Cycle:**
+- **Day/Night Cycle:**  
   The sun’s position is updated dynamically based on time, affecting:
   - Ambient light intensity and color.
   - Sky background color.
   - Building window lighting through efficient pre-rendered textures.
-- **Traffic System:**
+- **Traffic System:**  
   Vehicles are programmed to respond to traffic lights, with realistic acceleration and deceleration based on proximity to intersections.
-
-## Contribution
-
-Feel free to fork this repository and contribute enhancements, bug fixes, or optimizations. Pull requests are welcome!
 
 ## License
 
