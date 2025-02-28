@@ -13,7 +13,7 @@ const RaceTree = ({ phase }) => {
   const currentLights = lightStates[phase] || [false, false, false, false];
 
   return (
-    <div className="absolute left-[10%] top-[25%] transform -translate-x-1/2 -translate-y-1/2 z-20">
+    <div className="absolute left-[10%] top-[50%] transform -translate-x-1/2 -translate-y-1/2 z-20">
       <div className="w-6 h-32 bg-black rounded flex flex-col items-center justify-around p-1">
         {/* Red lights */}
         <div className={`w-4 h-4 rounded-full ${currentLights[0] ? 'bg-red-600' : 'bg-red-900'}`}></div>
